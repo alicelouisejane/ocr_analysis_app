@@ -329,11 +329,20 @@ ui <- fluidPage(
         ),
         tabPanel("Outlier Summary",
                  fluidRow(
-                   column(12, plotlyOutput("summary_outliers_calc", height = "1110"))
+                   column(12,
+                          tags$b("Triplicate-level QC message"),
+                          br(),
+                          verbatimTextOutput("triplicate_outlier_message_summary"),
+                          uiOutput("triplicate_download_ui")
+                   )
                  ),
                  br(),
                  fluidRow(
-                   column(12, plotlyOutput("summary_outliers_phase", height = "500px"))
+                   column(12, plotlyOutput("summary_outliers_calc", height = "1100px"))
+                 ),
+                 br(),
+                 fluidRow(
+                   column(12, plotlyOutput("summary_outliers_phase", height = "450px"))
                  )
         ),
         tabPanel("Calculations Data",
@@ -357,12 +366,48 @@ ui <- fluidPage(
         tabPanel("Outlier Data",
                  fluidRow(
                    column(12,
+                          tags$b("Triplicate-level QC message"),
+                          br(),
+                          verbatimTextOutput("triplicate_outlier_message")
+                   )
+                 ),
+                 br(),
+
+                 h4("Calculation Outliers"),
+                 fluidRow(
+                   column(12,
                           downloadButton("download_outlier_calcs", "Download Calculation Outliers"),
-                          downloadButton("download_outlier_phase", "Download Phase Outliers"),
-                          downloadButton("download_outlier_firstval", "Download First-Value Outliers"),
-                          downloadButton("download_outlier_all", "Download All Outliers"),
                           br(), br(),
-                          DT::dataTableOutput("outlier_data_table")
+                          DT::dataTableOutput("outlier_calcs_table")
+                   )
+                 ),
+                 br(),
+
+                 h4("Phase AUC Outliers"),
+                 fluidRow(
+                   column(12,
+                          downloadButton("download_outlier_phase", "Download Phase Outliers"),
+                          br(), br(),
+                          DT::dataTableOutput("outlier_phase_table")
+                   )
+                 ),
+                 br(),
+
+                 h4("First-Value Outliers"),
+                 fluidRow(
+                   column(12,
+                          downloadButton("download_outlier_firstval", "Download First-Value Outliers"),
+                          br(), br(),
+                          DT::dataTableOutput("outlier_firstval_table")
+                   )
+                 ),
+                 br(),
+
+                 h4("Triplicate Outliers"),
+                 fluidRow(
+                   column(12,
+                          uiOutput("triplicate_download_ui_2"),
+                          uiOutput("triplicate_table_ui")
                    )
                  )
         )
@@ -372,20 +417,12 @@ ui <- fluidPage(
 )
 
 
-# Server
 server <- function(input, output, session) {
   data_result <- reactiveVal(NULL)
-  segments_data <- data.frame(
-    start_time = c(0, 35.5, 86.62, 154.75, 205.88),
-    end_time = c(35.5, 86.62, 154.75, 205.88, 265.42),
-    condition = c("Basal 2.8mM Glucose", "16.7mM Glucose", "Oligomycin (5uM)", "FCCP (3uM)", "Rotenone/Antimycin A (5uM)"),
-    color = c("Blue", "Green", "Indigo", "Grey", "Magenta"),
-    text_position = c(18, 60, 120, 180, 235)
-  )
-  colors <- c("#7774FF", "#92C797", "#C274FF", "#85A3BE", "#F974FF")
 
   observeEvent(input$process, {
     req(input$ocr_file, input$dna_file)
+
     df <- rio::import(input$ocr_file$datapath)
     dna <- rio::import(input$dna_file$datapath)
 
@@ -394,20 +431,27 @@ server <- function(input, output, session) {
   })
 
   observeEvent(data_result(), {
+    req(data_result())
+
     df <- data_result()$ocr_traces
-    updateSelectizeInput(session, "selected_donor",
-                         choices = sort(unique(df$donor_id)),
-                         server = TRUE)
+    updateSelectizeInput(
+      session,
+      "selected_donor",
+      choices = sort(unique(df$donor_id)),
+      server = TRUE
+    )
   })
 
   observeEvent(input$reset_donor, {
     updateSelectizeInput(session, "selected_donor", selected = "")
   })
 
-  # Processed Data tab
-  # Calculations data tab
+  # ----------------------------
+  # Main data tables
+  # ----------------------------
   output$calculations_data_table <- DT::renderDataTable({
     req(data_result())
+
     df <- data_result()$ocr_calculations
 
     DT::datatable(
@@ -433,9 +477,9 @@ server <- function(input, output, session) {
     }
   )
 
-  # Traces data tab
   output$traces_data_table <- DT::renderDataTable({
     req(data_result())
+
     df <- data_result()$ocr_traces
 
     DT::datatable(
@@ -461,6 +505,9 @@ server <- function(input, output, session) {
     }
   )
 
+  # ----------------------------
+  # Interactive plots
+  # ----------------------------
   output$summary_outliers_calc <- renderPlotly({
     req(data_result())
     make_interactive_outlier_calc_plot(data_result()$outlier_calcs)
@@ -498,48 +545,15 @@ server <- function(input, output, session) {
     )
   })
 
-  output$outlier_data_table <- DT::renderDataTable({
-    req(data_result())
-
-    calc_df <- data_result()$outlier_calcs %>%
-      dplyr::filter(FLAG_outliercalc_whennormdna) %>%
-      dplyr::mutate(outlier_type = "Calculation")
-
-    phase_df <- data_result()$outlier_phase %>%
-      dplyr::filter(FLAG_outlierphase_whennormdnabaseline) %>%
-      dplyr::mutate(outlier_type = "Phase")
-
-    firstval_df <- data_result()$outlier_baseline %>%
-      dplyr::mutate(
-        outlier_type = "First value",
-        flagged_firstval = FLAG_firstvallessthat50_raw | FLAG_firstvalmorethan450_raw
-      ) %>%
-      dplyr::filter(flagged_firstval)
-
-    combined <- dplyr::bind_rows(
-      calc_df,
-      phase_df,
-      firstval_df
-    )
-
-    DT::datatable(
-      combined,
-      extensions = "Buttons",
-      options = list(
-        dom = "Bfrtip",
-        buttons = c("copy", "csv", "excel", "pdf", "print"),
-        scrollX = TRUE,
-        pageLength = 20
-      ),
-      rownames = FALSE
-    )
-  })
-
+  # ----------------------------
+  # Outlier downloads
+  # ----------------------------
   output$download_outlier_calcs <- downloadHandler(
     filename = function() paste0("ocr_outlier_calculations_", Sys.Date(), ".csv"),
     content = function(file) {
       df <- data_result()$outlier_calcs %>%
         dplyr::filter(FLAG_outliercalc_whennormdna)
+
       write.csv(df, file, row.names = FALSE)
     }
   )
@@ -549,6 +563,7 @@ server <- function(input, output, session) {
     content = function(file) {
       df <- data_result()$outlier_phase %>%
         dplyr::filter(FLAG_outlierphase_whennormdnabaseline)
+
       write.csv(df, file, row.names = FALSE)
     }
   )
@@ -561,33 +576,198 @@ server <- function(input, output, session) {
           flagged_firstval = FLAG_firstvallessthat50_raw | FLAG_firstvalmorethan450_raw
         ) %>%
         dplyr::filter(flagged_firstval)
+
       write.csv(df, file, row.names = FALSE)
     }
   )
 
-  output$download_outlier_all <- downloadHandler(
-    filename = function() paste0("ocr_outlier_all_", Sys.Date(), ".csv"),
+  output$download_outlier_triplicate <- downloadHandler(
+    filename = function() paste0("ocr_outlier_triplicate_", Sys.Date(), ".csv"),
     content = function(file) {
-      calc_df <- data_result()$outlier_calcs %>%
-        dplyr::filter(FLAG_outliercalc_whennormdna) %>%
-        dplyr::mutate(outlier_type = "Calculation")
+      df <- data_result()$outlier_triplicate %>%
+        dplyr::arrange(donor_id, replicate, time)
 
-      phase_df <- data_result()$outlier_phase %>%
-        dplyr::filter(FLAG_outlierphase_whennormdnabaseline) %>%
-        dplyr::mutate(outlier_type = "Phase")
-
-      firstval_df <- data_result()$outlier_baseline %>%
-        dplyr::mutate(
-          outlier_type = "First value",
-          flagged_firstval = FLAG_firstvallessthat50_raw | FLAG_firstvalmorethan450_raw
-        ) %>%
-        dplyr::filter(flagged_firstval)
-
-      combined <- dplyr::bind_rows(calc_df, phase_df, firstval_df)
-      write.csv(combined, file, row.names = FALSE)
+      write.csv(df, file, row.names = FALSE)
     }
   )
+
+  # ----------------------------
+  # Triplicate outlier message
+  # ----------------------------
+  output$triplicate_outlier_message <- renderText({
+    req(data_result())
+
+    trip_df <- data_result()$outlier_triplicate
+
+    if (is.null(trip_df) || nrow(trip_df) == 0) {
+      "No outliers were identified within triplicate measurements."
+    } else {
+      ids <- trip_df %>%
+        dplyr::mutate(donor_replicate = paste0(donor_id, "_", replicate)) %>%
+        dplyr::pull(donor_replicate) %>%
+        unique() %>%
+        sort()
+
+      paste0(
+        "Potential outliers were identified within triplicate measurements for: ",
+        paste(ids, collapse = ", "),
+        ". See the table below for the corresponding timepoints.
+                Replicates flagged as potential outliers are **not removed** from the dataset. Instead, these flags are provided for transparency and quality control."
+      )
+    }
+  })
+  output$triplicate_outlier_message_summary <- renderText({
+    req(data_result())
+
+    trip_df <- data_result()$outlier_triplicate
+
+    if (is.null(trip_df) || nrow(trip_df) == 0) {
+      "No outliers were identified within triplicate measurements."
+    } else {
+      ids <- trip_df %>%
+        dplyr::mutate(donor_replicate = paste0(donor_id, "_", replicate)) %>%
+        dplyr::pull(donor_replicate) %>%
+        unique() %>%
+        sort()
+
+      paste0(
+        "Potential outliers were identified within triplicate measurements for: ",
+        paste(ids, collapse = ", "),
+        ". See the table below for the corresponding timepoints.
+        Replicates flagged as potential outliers are **not removed** from the dataset. Instead, these flags are provided for transparency and quality control."
+      )
+    }
+  })
+
+  # ----------------------------
+  # Conditional triplicate UI
+  # ----------------------------
+  output$triplicate_download_ui <- renderUI({
+    req(data_result())
+
+    trip_df <- data_result()$outlier_triplicate
+
+    if (is.null(trip_df) || nrow(trip_df) == 0) {
+      return(NULL)
+    }
+
+    downloadButton("download_outlier_triplicate", "Download Triplicate Outliers")
+  })
+
+  output$triplicate_download_ui_2 <- renderUI({
+    req(data_result())
+
+    trip_df <- data_result()$outlier_triplicate
+
+    if (is.null(trip_df) || nrow(trip_df) == 0) {
+      return(NULL)
+    }
+
+    tagList(
+      downloadButton("download_outlier_triplicate", "Download Triplicate Outliers"),
+      br(), br()
+    )
+  })
+
+  output$triplicate_table_ui <- renderUI({
+    req(data_result())
+
+    trip_df <- data_result()$outlier_triplicate
+
+    if (is.null(trip_df) || nrow(trip_df) == 0) {
+      return(NULL)
+    }
+
+    DT::dataTableOutput("outlier_triplicate_table")
+  })
+
+  # ----------------------------
+  # Outlier tables
+  # ----------------------------
+  output$outlier_calcs_table <- DT::renderDataTable({
+    req(data_result())
+
+    df <- data_result()$outlier_calcs %>%
+      dplyr::filter(FLAG_outliercalc_whennormdna)
+
+    DT::datatable(
+      df,
+      extensions = "Buttons",
+      options = list(
+        dom = "Bfrtip",
+        buttons = c("copy", "csv", "excel", "pdf", "print"),
+        scrollX = TRUE,
+        pageLength = 20
+      ),
+      rownames = FALSE
+    )
+  })
+
+  output$outlier_phase_table <- DT::renderDataTable({
+    req(data_result())
+
+    df <- data_result()$outlier_phase %>%
+      dplyr::filter(FLAG_outlierphase_whennormdnabaseline)
+
+    DT::datatable(
+      df,
+      extensions = "Buttons",
+      options = list(
+        dom = "Bfrtip",
+        buttons = c("copy", "csv", "excel", "pdf", "print"),
+        scrollX = TRUE,
+        pageLength = 20
+      ),
+      rownames = FALSE
+    )
+  })
+
+  output$outlier_firstval_table <- DT::renderDataTable({
+    req(data_result())
+
+    df <- data_result()$outlier_baseline %>%
+      dplyr::mutate(
+        flagged = FLAG_firstvallessthat50_raw | FLAG_firstvalmorethan450_raw
+      ) %>%
+      dplyr::filter(flagged)
+
+    DT::datatable(
+      df,
+      extensions = "Buttons",
+      options = list(
+        dom = "Bfrtip",
+        buttons = c("copy", "csv", "excel", "pdf", "print"),
+        scrollX = TRUE,
+        pageLength = 20
+      ),
+      rownames = FALSE
+    )
+  })
+
+  output$outlier_triplicate_table <- DT::renderDataTable({
+    req(data_result())
+
+    df <- data_result()$outlier_triplicate
+    req(!is.null(df), nrow(df) > 0)
+
+    df <- df %>%
+      dplyr::arrange(donor_id, replicate, time)
+
+    DT::datatable(
+      df,
+      extensions = "Buttons",
+      options = list(
+        dom = "Bfrtip",
+        buttons = c("copy", "csv", "excel", "pdf", "print"),
+        scrollX = TRUE,
+        pageLength = 20
+      ),
+      rownames = FALSE
+    )
+  })
 }
 
 shinyApp(ui, server)
+
+rsconnect::deployApp(".", appName = "OCR_Analysis_App")
 

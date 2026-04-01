@@ -5,13 +5,6 @@ library(tibble)
 library(janitor)
 # normalise and create variables OCR analysis
 
-  # inputdirectory<-"/Users/alicecarr/Desktop/UofA/Andrew Pepper/data-raw/"
-  # outputdirectory<-"/Users/alicecarr/Desktop/UofA/Andrew Pepper/data-clean/"
-  #
-  # df_input<-rio::import(paste0(inputdirectory,"2026_03_06_seahorse data raw - to R625.xlsx"))
-  # dna_input<-rio::import(paste0(inputdirectory,"2026_03_06_seahorse data DNA - to R625.xlsx"))
-
-
 process_ocr_data <- function(df_input,dna_input,num_islets_per_well=70) {
 
   #reshape the dataframe from the traditional that was given and uplaoded to RedCap- assume this remains consistant
@@ -59,41 +52,36 @@ process_ocr_data <- function(df_input,dna_input,num_islets_per_well=70) {
                                       ifelse(time>=154.75 & time<205.88,"FCCP",
                                              ifelse(time>=205.88 & time<=265.42,"Rotenone/Antimycin",NA))))))
 
-  ### data QC - identify outliters on the triplicate and flag
-  outliers_time_withintrip<-ocr_clean_long %>%
-    group_by(donor_id) %>%
-    separate(variable,c("variable","time"),sep = "_") %>%
+  ### data QC - identify outliters on the triplicate and flag on raw value only
+  outliers_time_withintrip <- ocr_clean_long %>%
+    separate(donor_id, c("donor_id", "replicate"), sep = "_", remove = FALSE) %>%
+    separate(variable, c("measurement", "time"), sep = "_") %>%
     mutate(time = as.numeric(time)) %>%
-    select(donor_id,time,meta_dna_cont,starts_with("value")) %>%
-    #separate(donor_id,c("donor_id","repeat"),"_") %>%
-    pivot_longer(
-      cols = starts_with("value"),
-      names_to = "measurement",
-      values_to = "value"
-    ) %>%
-    arrange(donor_id, time, measurement) %>%
-    group_by(donor_id, time,measurement) %>%
+    select(donor_id, replicate, time, meta_dna_cont, measurement, value) %>%
+    arrange(donor_id, time, replicate) %>%
+    group_by(donor_id, time, measurement) %>%
     mutate(
       Q1 = quantile(value, 0.25, na.rm = TRUE),
       Q3 = quantile(value, 0.75, na.rm = TRUE),
       IQR = Q3 - Q1,
       Lower_Bound = Q1 - 1.5 * IQR,
       Upper_Bound = Q3 + 1.5 * IQR,
-      Is_Outlier = if_else(value < Lower_Bound | value > Upper_Bound, T, F)
+      Is_Outlier = if_else(value < Lower_Bound | value > Upper_Bound, TRUE, FALSE)
     ) %>%
     ungroup()
 
-  donor_id_outliers_time_withintrip<-outliers_time_withintrip %>%
-    select("donor_id","time","measurement","value","Is_Outlier",meta_dna_cont)
+  flag_donor_id_outliers_time_withintrip <- outliers_time_withintrip %>%
+    filter(Is_Outlier) %>%
+    select(donor_id, replicate, time, measurement, value, meta_dna_cont, Is_Outlier)
 
-  flag_donor_id_outliers_time_withintrip<-donor_id_outliers_time_withintrip %>%
-    filter(Is_Outlier==T)
   # removal of within triplicate outliers ?- need to have a better method here see ppt
   if(nrow(flag_donor_id_outliers_time_withintrip)>0){
-    print(paste0("Donors ids that have an Tukey identified outlier within the triplicate:\n", print(unique(flag_donor_id_outliers_time_withintrip$donor_id)),
-           "Check these ids. They have not been removed and will contribute the the average over the triplicate."))
-  }else{
-    print("No donors ids have an Tukey identified outlier within the triplicate.")
+    print(paste(
+      "Donor IDs with Tukey-identified outliers within triplicate:",
+      paste(unique(flag_donor_id_outliers_time_withintrip$donor_id), collapse = ", ")
+    ))
+    }else{
+    print("No donors ids have a Tukey identified outlier within the triplicate.")
   }
 
   #Merge flag of any outliers identifed in triplicate -
@@ -103,7 +91,7 @@ process_ocr_data <- function(df_input,dna_input,num_islets_per_well=70) {
       names_to = "measurement",
       values_to = "value"
     ) %>%
-    left_join(donor_id_outliers_time_withintrip)
+    left_join(flag_donor_id_outliers_time_withintrip)
 
   # maybe at this point show a map of any potential error replicates?
   # need a way to do this error replicate properly
@@ -481,13 +469,10 @@ return(list(
   outlier_calcs = outliers_ocr_final_calculations,
   outlier_phase = outliers_phase_ocr_final,
   outlier_baseline = outliers_baseline_ocr_final,
+  outlier_triplicate = flag_donor_id_outliers_time_withintrip,
   outlier_calcs.plot = p1,
   outlier_phase.plot = p2,
   ocr_final = ocr_final
 ))
 
-rio::export(ocr_final_traces,paste0(outputdirectory,Sys.Date(),"_ocr_traces_dataset.xlsx"))
-rio::export(ocr_final_calculations,paste0(outputdirectory,Sys.Date(),"_ocr_calculations_dataset.xlsx"))
-ggsave("traces_DNA_baseline.png", trace_plot,width = 10, height = 7)
-ggsave("calc_distributions.png", p1,width = 15, height = 12)
 }

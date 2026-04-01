@@ -1,0 +1,10 @@
+name: OCR_Analysis_App
+title:
+username: alicelouisejane
+account: alicelouisejane
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 17041527
+bundleId: 11793745
+url: https://alicelouisejane.shinyapps.io/OCR_Analysis_App/
+version: 1
