@@ -1,27 +1,35 @@
----
-title: "OCR Analysis App: Processing and Visualising Seahorse Data"
-output:
-  github_document:
-    toc: true
-    toc_depth: 2
----
+OCR Analysis App: Processing and Visualising Seahorse Data
+================
 
-This repository contains the code for an interactive Shiny app for processing and visualising Seahorse OCR data, including:
+- [How to run the app](#how-to-run-the-app)
+- [Data Input](#data-input)
+- [Data Processing and Outlier
+  Identification](#data-processing-and-outlier-identification)
+- [Outlier Visualisation](#outlier-visualisation)
+- [Trace Visualisation](#trace-visualisation)
+- [Bioenergetic Parameters](#bioenergetic-parameters)
 
--   Trace visualisation across normalisation methods (Raw, DNA, DNA + Baseline)
--   Computation of bioenergetic parameters, including Bioenergetic Health Index( BHI) and glucose-stimulated metrics
--   Computation of phase-specific AUC across the assay phases:
-    -   2.8 mM glucose
-    -   16.7 mM glucose
-    -   Oligomycin
-    -   FCCP
-    -   Rotenone/Antimycin
--   Outlier detection:
-    -   Tukey-based outliers for calculated parameters and phase AUC
-    -   First-value outliers (\<50 or \>450 pmol/min)
--   Interactive exploration and download of results tables
+This repository contains the code for an interactive Shiny app for
+processing and visualising Seahorse OCR data, including:
 
-> **This analysis pipeline is designed specifically for the Seahorse OCR injection-phase protocol used for donor islet studies at the Alberta Diabetes Institute.**
+- Trace visualisation across normalisation methods (Raw, DNA, DNA +
+  Baseline)
+- Computation of bioenergetic parameters, including Bioenergetic Health
+  Index( BHI) and glucose-stimulated metrics
+- Computation of phase-specific AUC across the assay phases:
+  - 2.8 mM glucose
+  - 16.7 mM glucose
+  - Oligomycin
+  - FCCP
+  - Rotenone/Antimycin
+- Outlier detection:
+  - Tukey-based outliers for calculated parameters and phase AUC
+  - First-value outliers (\<50 or \>450 pmol/min)
+- Interactive exploration and download of results tables
+
+> **This analysis pipeline is designed specifically for the Seahorse OCR
+> injection-phase protocol used for donor islet studies at the Alberta
+> Diabetes Institute.**
 
 ## How to run the app
 
@@ -29,7 +37,8 @@ The app is available via Shiny:
 
 <https://alicelouisejane.shinyapps.io/OCR_Analysis_App/>
 
-No installation is required—simply upload your OCR and DNA files and run the analysis directly in the browser.
+No installation is required—simply upload your OCR and DNA files and run
+the analysis directly in the browser.
 
 If you prefer to run the app locally in R:
 
@@ -37,29 +46,23 @@ If you prefer to run the app locally in R:
 
 Clone using Git:
 
-```         
-git clone https://github.com/<your-username>/ocr-analysis-app.git
-```
+    git clone https://github.com/<your-username>/ocr-analysis-app.git
 
 Or download the repository as a ZIP from GitHub and unzip it.
 
 #### 2) Install required R packages
 
-```         
-install.packages(c(
-  "shiny", "plotly", "DT",
-  "rio", "dplyr", "tidyr", "stringr",
-  "ggplot2", "pracma"
-))
-```
+    install.packages(c(
+      "shiny", "plotly", "DT",
+      "rio", "dplyr", "tidyr", "stringr",
+      "ggplot2", "pracma"
+    ))
 
 #### 3) Run the app
 
 From the repository directory, run:
 
-```         
-shiny::runApp("app.R")
-```
+    shiny::runApp("app.R")
 
 ## Data Input
 
@@ -67,140 +70,169 @@ The app requires **two input files**:
 
 ### 1. Seahorse OCR data file
 
--   Wide format (as exported / structured for RedCap upload)
--   The first column is the OCR measured time with the naming convention value_1.38, value 26.89.... etc the specific time values may vary
--   Each **column** represents a **donor_replicate** (if replicate is relevant)
--   **The first row is left blank**
+- Wide format (as exported / structured for RedCap upload)
+- The first column is the OCR measured time with the naming convention
+  value_1.38, value 26.89…. etc the specific time values may vary
+- Each **column** represents a **donor_replicate** (if replicate is
+  relevant)
+- **The first row is left blank**
 
 An example of the expected format is below:
 
-```{r, include=F}
-library(readxl)
-library(knitr)
+\`\`\`{r, include=F} library(readxl) library(knitr)
 
-ocr_example1 <- read_excel(
-  "docs/OCR_analysis_template_and_definitions.xlsx",
-  sheet = "ocr_file",
-  col_names = FALSE
-)
+ocr_example1 \<- read_excel(
+“docs/OCR_analysis_template_and_definitions.xlsx”, sheet = “ocr_file”,
+col_names = FALSE )
 
-kable(ocr_example1, caption = "Example format for the Seahorse OCR input file")
-```
+kable(ocr_example1, caption = “Example format for the Seahorse OCR input
+file”)
 
-### 2. DNA content file
 
--   Wide format (as exported / structured for RedCap upload)
--   Each **column** represents a **donor_replicate** (if replicate is relevant)
--   **The first row is left blank**
--   The first row is name of the DNA variable. This must have the fixed name: **meta_dna_cont**
--   Used for normalisation. DNA content per well in \mu g. If missing, leave blank and an approximation will be applied in the processing function based on IEQ is use: 1 IEQ \~ 9000 pg DNA -\> 70 IEQs ≈ 0.63 \\mu g DNA
+    ### 2. DNA content file
 
-> **Development** Currently only works for DNA normalisation, future development will add the option to normalise to total protien
+    -   Wide format (as exported / structured for RedCap upload)
+    -   Each **column** represents a **donor_replicate** (if replicate is relevant)
+    -   **The first row is left blank**
+    -   The first row is name of the DNA variable. This must have the fixed name: **meta_dna_cont**
+    -   Used for normalisation. DNA content per well in \mu g. If missing, leave blank and an approximation will be applied in the processing function based on IEQ is use: 1 IEQ \~ 9000 pg DNA -\> 70 IEQs ≈ 0.63 \\mu g DNA
 
-An example of the expected format is below:
+    > **Development** Currently only works for DNA normalisation, future development will add the option to normalise to total protien
 
-```{r, include=F}
-library(readxl)
-library(knitr)
+    An example of the expected format is below:
 
-ocr_example2 <- read_excel(
-  "docs/OCR_analysis_template_and_definitions.xlsx",
-  sheet = "dna_file",
-  col_names = FALSE
-)
+    ```{r, include=F}
+    library(readxl)
+    library(knitr)
 
-kable(ocr_example2, caption = "Example format for the DNA input file")
-```
+    ocr_example2 <- read_excel(
+      "docs/OCR_analysis_template_and_definitions.xlsx",
+      sheet = "dna_file",
+      col_names = FALSE
+    )
+
+    kable(ocr_example2, caption = "Example format for the DNA input file")
 
 ## Data Processing and Outlier Identification
 
-Data are typically generated in **triplicate per donor** and processed through the following steps:
+Data are typically generated in **triplicate per donor** and processed
+through the following steps:
 
-1.  **Replicate-level quality control**\
-    A Tukey-based outlier check is applied within each donor and timepoint (on raw OCR values).\
-    Replicates flagged as potential outliers are **retained** and not removed.
+1.  **Replicate-level quality control**  
+    A Tukey-based outlier check is applied within each donor and
+    timepoint (on raw OCR values).  
+    Replicates flagged as potential outliers are **retained** and not
+    removed.
 
-2.  **Averaging across replicates**\
-    OCR values are averaged across replicates for each donor and timepoint.\
-    These averaged values are used for all downstream analyses and visualisation (including trace plots).
+2.  **Averaging across replicates**  
+    OCR values are averaged across replicates for each donor and
+    timepoint.  
+    These averaged values are used for all downstream analyses and
+    visualisation (including trace plots).
 
-3.  **Derivation of summary metrics**\
+3.  **Derivation of summary metrics**  
     From the averaged data:
 
-    -   bioenergetic parameters are calculated
-    -   phase-specific AUC values are computed
+    - bioenergetic parameters are calculated
+    - phase-specific AUC values are computed
 
-4.  **Outlier identification on derived metrics**\
+4.  **Outlier identification on derived metrics**  
     A second Tukey-based outlier check is applied to:
 
-    -   bioenergetic parameters
-    -   phase-specific AUC values
-    -   Raw OCR values are additionally flagged if: \<50 pmol/min or \>450 pmol/min
+    - bioenergetic parameters
+    - phase-specific AUC values
+    - Raw OCR values are additionally flagged if: \<50 pmol/min or \>450
+      pmol/min
 
 > **Note on interpretation of outliers**
 >
-> Outliers identified are **not removed** from the dataset and should not be interpreted as errors or exclusions. These flags highlight values that are unusual relative to the observed distribution and may warrant further investigation in the context of experimental conditions, assay performance, or biological variability.
+> Outliers identified are **not removed** from the dataset and should
+> not be interpreted as errors or exclusions. These flags highlight
+> values that are unusual relative to the observed distribution and may
+> warrant further investigation in the context of experimental
+> conditions, assay performance, or biological variability.
 >
-> As such, flagged outliers represent **distribution-based deviations**, not automatic indicators of poor-quality measurements.
+> As such, flagged outliers represent **distribution-based deviations**,
+> not automatic indicators of poor-quality measurements.
 
 ------------------------------------------------------------------------
 
 ## Outlier Visualisation
 
-The **Outlier Data tab** contains all identified outliers across categories:
+The **Outlier Data tab** contains all identified outliers across
+categories:
 
--   **Calculation and Phase AUC outliers**\
-    Identified using the Tukey method:\
-    values \< Q1 − 1.5×IQR or \> Q3 + 1.5×IQR
+- **Calculation and Phase AUC outliers**  
+  Identified using the Tukey method:  
+  values \< Q1 − 1.5×IQR or \> Q3 + 1.5×IQR
 
--   **First-value outliers**\
-    Defined on raw OCR measurements as values \<50 or \>450 pmol/min
+- **First-value outliers**  
+  Defined on raw OCR measurements as values \<50 or \>450 pmol/min
 
-The displayed table represents the **combined output** of all outlier types.\
+The displayed table represents the **combined output** of all outlier
+types.  
 
-Separate tables for each outlier category (Calculation, Phase AUC, and First-value outliers) can be downloaded individually.
+Separate tables for each outlier category (Calculation, Phase AUC, and
+First-value outliers) can be downloaded individually.
 
 ------------------------------------------------------------------------
 
-The **Outlier Summary tab** provides a visual overview of these outliers:
+The **Outlier Summary tab** provides a visual overview of these
+outliers:
 
--   Each point represents an individual **donor replicate**
--   Panels are shown per **bioenergetic parameter** or **phase-specific AUC**
--   Points are colour-coded:
-    -   **Green** - within expected range
-    -   **Red** flagged as a Tukey outlier
+- Each point represents an individual **donor replicate**
+- Panels are shown per **bioenergetic parameter** or **phase-specific
+  AUC**
+- Points are colour-coded:
+  - **Green** - within expected range
+  - **Red** flagged as a Tukey outlier
 
-Interactive hover enables exploration of donor ID, parameter or phase and corresponding value
+Interactive hover enables exploration of donor ID, parameter or phase
+and corresponding value
 
 ## Trace Visualisation
 
-The **OCR traces tab** displays donor-level trajectories across time over three panels for Raw OCR, DNA-normalised OCR and DNA + baseline normalised OCR (fold change). Background coloured bands indicate injection phases. Shape of curves reflects mitochondrial function. Differences between normalisation methods highlight cell number variation (DNA) and relative functional response (baseline).
+The **OCR traces tab** displays donor-level trajectories across time
+over three panels for Raw OCR, DNA-normalised OCR and DNA + baseline
+normalised OCR (fold change). Background coloured bands indicate
+injection phases. Shape of curves reflects mitochondrial function.
+Differences between normalisation methods highlight cell number
+variation (DNA) and relative functional response (baseline).
 
-Interactive highlighting allows you to click a donor to highlight. Use the search bar to locate specific donor IDs which will highlight across all three panels.
+Interactive highlighting allows you to click a donor to highlight. Use
+the search bar to locate specific donor IDs which will highlight across
+all three panels.
 
-The **Traces Data tab** provides the underlying data used for visualisation in a downloadable format. This includes time-resolved OCR values across all normalisation types and associated metadata (e.g., phase assignment and quality flags).
+The **Traces Data tab** provides the underlying data used for
+visualisation in a downloadable format. This includes time-resolved OCR
+values across all normalisation types and associated metadata (e.g.,
+phase assignment and quality flags).
 
 ## Bioenergetic Parameters
 
-Bioenergetic parameters are available in the **Calculations Data tab**, presented in long format with one row per parameter per normalisation type.
+Bioenergetic parameters are available in the **Calculations Data tab**,
+presented in long format with one row per parameter per normalisation
+type.
 
-These parameters are calculated using established Seahorse XF analysis definitions. The **Bioenergetic Health Index (BHI)** is derived as described in the [Agilent BHI Report Generator User Guide](https://www.agilent.com/Library/usermanuals/Public/BHI_Report_Generator_User_Guide_RevA.pdf).
+These parameters are calculated using established Seahorse XF analysis
+definitions. The **Bioenergetic Health Index (BHI)** is derived as
+described in the [Agilent BHI Report Generator User
+Guide](https://www.agilent.com/Library/usermanuals/Public/BHI_Report_Generator_User_Guide_RevA.pdf).
 
-Parameters are calculated on Raw OCR data and DNA-normalised OCR data, with the latter the preferential for use.
+Parameters are calculated on Raw OCR data and DNA-normalised OCR data,
+with the latter the preferential for use.
 
-Parameters are **not calculated** on data normalised to baseline, as baseline normalisation represents fold change and is not appropriate for absolute bioenergetic metrics.
+Parameters are **not calculated** on data normalised to baseline, as
+baseline normalisation represents fold change and is not appropriate for
+absolute bioenergetic metrics.
 
 Definitions of the bioenergetic parameters are listed below:
 
-```{r, include=F}
-library(readxl)
-library(knitr)
+\`\`\`{r, include=F} library(readxl) library(knitr)
 
-ocr_definitions <- read_excel(
-  "docs/OCR_analysis_template_and_definitions.xlsx",
-  sheet = "definitions",
-  col_names = FALSE
-)
+ocr_definitions \<- read_excel(
+“docs/OCR_analysis_template_and_definitions.xlsx”, sheet =
+“definitions”, col_names = FALSE )
 
-kable(ocr_definitions, caption = "Bioenergetic parameter definitions")
-```
+kable(ocr_definitions, caption = “Bioenergetic parameter definitions”)
+\`\`\`

@@ -12,6 +12,14 @@ library(shinyBS)
 source("process_ocr.R")
 
 # plotting function
+segments_data <- data.frame(
+  start_time = c(0, 35.5, 86.62, 154.75, 205.88),
+  end_time = c(35.5, 86.62, 154.75, 205.88, 265.42),
+  condition = c("2.8mM Glucose", "16.7mM Glucose", "Oligomycin (5uM)",
+                "FCCP (3uM)", "Rotenone/Antimycin A (5uM)"),
+  color = c("#7774FF", "#92C797", "#C274FF", "#85A3BE", "#F974FF"),
+  text_position = c(18, 60, 120, 180, 235)
+)
 make_interactive_plot <- function(df, norm_type, selected_donor = NULL) {
 
   # Filter data for the normalisation type
@@ -611,11 +619,13 @@ server <- function(input, output, session) {
       paste0(
         "Potential outliers were identified within triplicate measurements for: ",
         paste(ids, collapse = ", "),
-        ". See the table below for the corresponding timepoints.
-                Replicates flagged as potential outliers are **not removed** from the dataset. Instead, these flags are provided for transparency and quality control."
+        ". See the table below for the corresponding timepoints. ",
+        "Replicates flagged as potential outliers are not removed from the dataset; ",
+        "these flags are provided for transparency and quality control."
       )
     }
   })
+
   output$triplicate_outlier_message_summary <- renderText({
     req(data_result())
 
@@ -633,8 +643,9 @@ server <- function(input, output, session) {
       paste0(
         "Potential outliers were identified within triplicate measurements for: ",
         paste(ids, collapse = ", "),
-        ". See the table below for the corresponding timepoints.
-        Replicates flagged as potential outliers are **not removed** from the dataset. Instead, these flags are provided for transparency and quality control."
+        ". See the table below for the corresponding timepoints. ",
+        "Replicates flagged as potential outliers are not removed from the dataset; ",
+        "these flags are provided for transparency and quality control."
       )
     }
   })
@@ -769,5 +780,5 @@ server <- function(input, output, session) {
 
 shinyApp(ui, server)
 
-rsconnect::deployApp(".", appName = "OCR_Analysis_App")
+
 
