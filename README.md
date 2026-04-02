@@ -70,6 +70,10 @@ install.packages(c(
 shiny::runApp("app.R")
 ```
 
+<p align="center">
+<img src="docs/OCR_demo.gif" width="700">
+</p>
+
 ------------------------------------------------------------------------
 
 ## Data Input
@@ -245,9 +249,8 @@ absolute bioenergetic metrics.
 
 **Definitions of the bioenergetic parameters are listed below:**
 
-| …1                                              | …2                                                                                                                                    | …3                                                                                            |
-|:------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------|
 | Variable                                        | Definition                                                                                                                            | Relation to timings on trace                                                                  |
+|:------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------|
 | Basal respiration                               | Mitochondrial oxygen consumption under resting conditions, representing baseline cellular metabolic activity.                         | Last measurement during 2.8 mM glucose (blue) before first injection - non-mitochondrial OCR  |
 | ATP-linked respiration                          | Oxygen consumption used for ATP synthesis, reflecting efficiency of energy production.                                                | Basal OCR - lowest value after oligomycin (purple, 5 µM)                                      |
 | Proton leak                                     | Oxygen consumption due to proton flow across the mitochondrial membrane independent of ATP production, reflecting membrane integrity. | Lowest value after oligomycin (purple, 5 µM) - non-mitochondrial OCR                          |

@@ -85,6 +85,10 @@ install.packages(c(
 shiny::runApp("app.R")
 ```
 
+<p align="center">
+  <img src="docs/OCR_demo.gif" width="700">
+</p>
+
 ------------------------------------------------------------------------
 
 ## Data Input {#data-input}
@@ -245,7 +249,7 @@ library(knitr)
 ocr_definitions <-
   read_excel("docs/OCR_dataformat_and_definitions.xlsx", 
              sheet =
-"bioenergetics", col_names = FALSE )
+"bioenergetics", col_names = TRUE )
 
 kable(ocr_definitions)
 ```
