@@ -70,9 +70,10 @@ install.packages(c(
 shiny::runApp("app.R")
 ```
 
-<p align="center">
-<img src="docs/OCR_demo.gif" width="700">
-</p>
+<figure>
+<img src="docs/app_demo.gif" alt="App demo" />
+<figcaption aria-hidden="true">App demo</figcaption>
+</figure>
 
 ------------------------------------------------------------------------
 
